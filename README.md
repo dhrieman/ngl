@@ -1,0 +1,2 @@
+# ngl
+Neighbor Graph Library
