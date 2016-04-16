@@ -27,49 +27,34 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *************************************************************************/
-#ifndef NGL_GEOMETRIC_TEST_H
-#define NGL_GEOMETRIC_TEST_H
+#ifndef NGL_EMPTY_REGION_H
+#define NGL_EMPTY_REGION_H
 
 namespace ngl {
 
 // Abstract class for a geometric test. It provides the method
 // shadowing(edge, point), which determines when an edge shadows a point.
-template<typename Point, typename Scalar, typename Edge>
-class GeometricTest {
+template<typename Point, typename Scalar>
+class EmptyRegion {
  public:
-  GeometricTest() {}
+  EmptyRegion() {}
 
-  virtual ~GeometricTest() {}
+  virtual ~EmptyRegion() {}
 
-  // Returns true if the umbra region defined by edge shadows point r
-  inline bool shadows(const Edge& edge, const Point &r) {
-    return shadowing(edge, r) < 0;
+  // Sets this empty region as defined for edge pq
+  virtual void set(const Point& p, const Point &q) = 0;
+
+  // Returns true if the empty region defined shadows point r
+  inline bool shadows(const Point &r) {
+    return shadowing(r) < 0;
   }
 
-  // Returns a real value denoting the shadowing of a point r by the
-  // umbra region defined by edge. As a convention, a negative value
-  // denotes a point at the interior of the umbra, a positive value at
+  // Returns a real value denoting the shadowing of a point r by this
+  // empty region. As a convention, a negative value denotes a point at the
+  // interior of the umbra cast by the empty regoin, a positive value at
   // the outside, and zero at the boundary.
-  virtual Scalar shadowing(const Edge& edge, const Point& r) = 0;
+  virtual Scalar shadowing(const Point& r) = 0;
 
-  // Sets the active edge to pq.
-  virtual void setActiveEdge(const Point& p, const Point& q) = 0;
-
-  // Returns the active edge.
-  virtual Edge& getActiveEdge() = 0;
-  
-  void setParam(Scalar param) {
-    param_ = param;
-  }
-
-  Scalar getParam() {
-    return param_;
-  }
-  
- protected:
-  // A parameterization value for this geometric test,
-  // e.g., beta in Beta Skeletons
-  Scalar param_;
 };
 
 };  // namespace ngl

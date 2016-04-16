@@ -35,20 +35,24 @@
 #include "neighborhood-builder.h"
 #include "relative-neighbor.h"
 #include "typed-vectorspace.h"
+#include "neighbor-graph-impl.h"
 
 namespace ngl {
 
 typedef TypedVectorSpace<double> DoubleVectorSpace;
 
+typedef NeighborhoodBuilder<double*, double> NeighborhoodBuilderD;
 typedef RelativeNeighborGraphBuilder<double*, double>
     RelativeNeighborGraphBuilderD;
 typedef GabrielGraphBuilder<double*, double> GabrielGraphBuilderD;
 typedef BSkeletonBuilder<double*, double> BSkeletonBuilderD;
 
 typedef TypedVectorSpace<float> FloatVectorSpace;
+typedef NeighborhoodBuilder<float*, float> NeighborhoodBuilderF;
 typedef RelativeNeighborGraphBuilder<float*, float>
     RelativeNeighborGraphBuilderF;
 typedef GabrielGraphBuilder<float*, float> GabrielGraphBuilderF;
+typedef BSkeletonBuilder<float*, float> BSkeletonBuilderF;
 
 };
 

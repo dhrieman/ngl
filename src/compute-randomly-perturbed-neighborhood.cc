@@ -60,16 +60,30 @@ void usage(char* argv0) {
   printf("  param  \tOptional parameter. Beta for beta skeleton.\n");
 }
 
-template<typename NeighborhoodBuilder>
+ngl::NeighborhoodBuilderD* createNeighborhoodBuilderD(
+    const DoubleVectorSpace& space,
+    const string& method, double beta) {
+  ngl::NeighborhoodBuilderD* builder;
+  if (method == "RelativeNeighbor") {
+    builder = new RelativeNeighborGraphBuilderD(space);
+  } else if (method == "Gabriel") {
+    builder = new GabrielGraphBuilderD(space);
+  } else if (method == "BSkeleton") {
+    builder = new BSkeletonBuilderD(space, beta);
+  } else {
+    fprintf(stderr, "Method %s not found.\n", method.c_str());
+    return nullptr;
+  }
+  return builder;
+}
+
 void estimateScale(const vector<double*>& points, int dims,
-      double param, vector<double>* scales) {
+                   ngl::NeighborhoodBuilderD& builder,
+                   vector<double>* scales) {
   DoubleVectorSpace space(dims);
 
-  NeighborhoodBuilder builder(space);
-  builder.setParam(param);
-  builder.addPoints(points);
-
   NeighborGraphImpl neighborGraph;
+  builder.addPoints(points);
   builder.computeNeighborGraph(&neighborGraph);
   
   vector<int>* neighbors = new vector<int>[points.size()];
@@ -91,27 +105,13 @@ void estimateScale(const vector<double*>& points, int dims,
       double d = space.distance(points[i], points[neighbor]);
       distances.push_back(d);
     }
+    if (distances.size() == 0) continue;
     int neighbor = distances.size() / 2;
     std::nth_element(distances.begin(), distances.begin() + neighbor,
                      distances.end());
     double scale = distances[neighbor];
     scales->push_back(scale * 0.5);
   }
-}
-
-
-template<typename NeighborhoodBuilder>
-void computeNeighborGraph(const vector<double*>& points, int dims,
-    double param, NeighborGraphImpl* neighborGraph) {
-  assert(neighborGraph);
-  neighborGraph->clear();
-  DoubleVectorSpace space(dims);
-
-  NeighborhoodBuilder builder(space);
-  builder.setParam(param);
-  builder.addPoints(points);
-
-  builder.computeNeighborGraph(neighborGraph);
 }
 
 void perturbPoints(const vector<double*>& points, int dims,
@@ -130,13 +130,12 @@ void perturbPoints(const vector<double*>& points, int dims,
   }
 }
 
-template<typename NeighborhoodBuilder>
-void computePerturbedNeighborGraph(const vector<double*>& points, int dims,
-    double param = 0.0) {
-  vector<double> scales;
-  estimateScale<NeighborhoodBuilder>(points, dims, param, &scales);
+void computePerturbedNeighborGraph(
+    const vector<double*>& points, int dims,
+    const vector<double>& scales,
+    const string& method,
+    double beta = 0.0) {
   unordered_map<string, int> edgeMap;
-  NeighborGraphImpl neighborGraph;
   int numIterations = 100;
 
   vector<double*> perturbed_points;
@@ -145,10 +144,17 @@ void computePerturbedNeighborGraph(const vector<double*>& points, int dims,
     perturbed_points.push_back(p);
   }
 
+  DoubleVectorSpace space(dims);
   for (int it = 0; it < numIterations; ++it) {
     perturbPoints(points, dims, scales, &perturbed_points);
-    computeNeighborGraph<NeighborhoodBuilder>(perturbed_points, dims, param,
-        &neighborGraph);
+
+    ngl::NeighborhoodBuilderD* builder =
+      createNeighborhoodBuilderD(space, method, beta);
+    builder->addPoints(perturbed_points);
+
+    NeighborGraphImpl neighborGraph;
+    builder->computeNeighborGraph(&neighborGraph);
+
     for (int i = 0; i < neighborGraph.size(); ++i) {
       int src;
       int dst;
@@ -197,14 +203,12 @@ int main(int argc, char* argv[]) {
     points.push_back(p);
   }
 
-  if (method == "RelativeNeighbor") {
-    computePerturbedNeighborGraph<RelativeNeighborGraphBuilderD>(points, dims);
-  } else if (method == "Gabriel") {
-    computePerturbedNeighborGraph<GabrielGraphBuilderD>(points, dims);
-  } else if (method == "BSkeleton") {
-    computePerturbedNeighborGraph<BSkeletonBuilderD>(points, dims, beta);
-  } else {
-    fprintf(stderr, "Method %s not found.\n", method.c_str());
-    return 1;
-  }
+  DoubleVectorSpace space(dims);
+  ngl::NeighborhoodBuilderD* scaleBuilder =
+      createNeighborhoodBuilderD(space, method, beta);
+  vector<double> scales;
+  estimateScale(points, dims, *scaleBuilder, &scales);
+  delete scaleBuilder;
+
+  computePerturbedNeighborGraph(points, dims, scales, method, beta);
 }

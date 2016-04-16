@@ -31,15 +31,76 @@
 #ifndef NGL_BSKELETON_H
 #define NGL_BSKELETON_H
 
-#include "geometric-test.h"
+#include "empty-region.h"
 #include "neighborhood-builder.h"
 #include "vectorspace.h"
 
 namespace ngl {
 
 template<typename Point, typename Scalar>
-class BSkeletonEdge {
+class BSkeleton :
+    public EmptyRegion<Point, Scalar> {
  public:
+  explicit BSkeleton(const VectorSpace<Point, Scalar>& space, Scalar beta):
+      EmptyRegion<Point, Scalar>(),
+      space_(space), beta_(beta) {
+    space_.allocate(&p);
+    space_.allocate(&q);
+    space_.allocate(&pq);
+    space_.allocate(&planeCrossing);
+    space_.allocate(&centroid);
+    space_.allocate(&rq);
+  }
+  virtual ~BSkeleton() {
+    space_.deallocate(p);
+    space_.deallocate(q);
+    space_.deallocate(pq);
+    space_.deallocate(planeCrossing);
+    space_.deallocate(centroid);
+    space_.deallocate(rq);
+  }
+
+  void set(const Point& pin, const Point& qin) {
+    assert(p);
+    space_.set(p, pin);
+    space_.set(q, qin);
+    square_length = space_.distanceSqr(p, q);
+    space_.subtract(q, p, pq);
+    if (beta_ > 1) {
+      space_.interpolate(p, q, 1.0 / beta_, planeCrossing);
+      Scalar delta = 0.5 * (1.0 + 1.0 / (beta_ - 1.0));
+      space_.interpolate(p, q, 1.0 - delta, centroid);
+      distanceCentroidSqr = space_.distanceSqr(q, centroid);
+    }
+  }
+
+  virtual Scalar shadowing(const Point& r) {
+    if (beta_ <= 1.0) {
+      space_.subtract(r, q, rq);
+      Scalar dot = space_.dot(pq, rq);
+      Scalar mag2sqr = space_.dot(rq, rq);
+      Scalar test = (square_length > 0 && mag2sqr > 0)
+          ? fabs(dot) * dot / (square_length * mag2sqr)
+          : 1;
+      Scalar maxdot = 1.0 - beta_ * beta_;
+      return maxdot - test;
+    } else {
+      space_.subtract(r, planeCrossing, rq);
+      Scalar dot = space_.dot(pq, rq);
+      if (beta_ > 1) {
+        Scalar drc2 = space_.distanceSqr(r, centroid);
+        if (drc2 < distanceCentroidSqr) {
+          return distanceCentroidSqr - drc2;
+        }
+      }
+      return -dot;
+    }
+  }
+
+ private:
+  const VectorSpace<Point, Scalar>& space_;
+  Scalar beta_;
+
   Point p;
   Point q;
   // Vector pq = q - p
@@ -50,94 +111,7 @@ class BSkeletonEdge {
   Scalar square_length;
   // Distance squared centroid - q
   Scalar distanceCentroidSqr;
-
-  explicit BSkeletonEdge(const VectorSpace<Point, Scalar>& space) :
-      space_(space),
-      p(NULL), q(NULL), pq(NULL), planeCrossing(NULL), centroid(NULL) {
-    space_.allocate(&p);
-    space_.allocate(&q);
-    space_.allocate(&pq);
-    space_.allocate(&planeCrossing);
-    space_.allocate(&centroid);
-  }
-
-  virtual ~BSkeletonEdge() {
-    space_.deallocate(p);
-    space_.deallocate(q);
-    space_.deallocate(pq);
-    space_.deallocate(planeCrossing);
-    space_.deallocate(centroid);
-  }
-
-  void reset(const Point& pin, const Point& qin, Scalar beta) {
-    assert(p);
-    space_.set(p, pin);
-    space_.set(q, qin);
-    square_length = space_.distanceSqr(p, q);
-    space_.subtract(q, p, pq);
-    if (beta > 1) {
-      space_.interpolate(p, q, 1.0 / beta, planeCrossing);
-      Scalar delta = 0.5 * (1.0 + 1.0 / (beta - 1.0));
-      space_.interpolate(p, q, 1.0 - delta, centroid);
-      distanceCentroidSqr = space_.distanceSqr(q, centroid);
-    }
-  }
-
-  const VectorSpace<Point, Scalar>& space_;
-};
-
-
-template<typename Point, typename Scalar>
-class BSkeleton :
-    public GeometricTest<Point, Scalar, BSkeletonEdge<Point, Scalar> > {
- public:
-  explicit BSkeleton(const VectorSpace<Point, Scalar>& space):
-      GeometricTest<Point, Scalar, BSkeletonEdge<Point, Scalar> >(),
-      space_(space), edge_(space) {
-    space_.allocate(&rq);
-  }
-  virtual ~BSkeleton() {
-    space_.deallocate(rq);
-  }
-
-  virtual Scalar shadowing(const BSkeletonEdge<Point, Scalar>& edge,
-                           const Point& r) {
-    Scalar beta =
-        GeometricTest<Point, Scalar, BSkeletonEdge<Point, Scalar> >::getParam();
-    if (beta <= 1.0) {
-      space_.subtract(r, edge.q, rq);
-      Scalar dot = space_.dot(edge.pq, rq);
-      Scalar mag2sqr = space_.dot(rq, rq);
-      Scalar test = (edge.square_length > 0 && mag2sqr > 0)
-          ? fabs(dot) * dot / (edge.square_length * mag2sqr)
-          : 1;
-      Scalar maxdot = 1.0 - beta * beta;
-      return maxdot - test;
-    } else {
-      space_.subtract(r, edge.planeCrossing, rq);
-      Scalar dot = space_.dot(edge.pq, rq);
-      if (beta > 1) {
-        Scalar drc2 = space_.distanceSqr(r, edge.centroid);
-        if (drc2 < edge.distanceCentroidSqr) {
-          return edge.distanceCentroidSqr - drc2;
-        }
-      }
-      return -dot;
-    }
-  }
-
-  virtual void setActiveEdge(const Point& p, const Point& q) {
-    Scalar beta =
-        GeometricTest<Point, Scalar, BSkeletonEdge<Point, Scalar> >::getParam();
-    edge_.reset(p, q, beta);
-  }
-  virtual BSkeletonEdge<Point, Scalar>& getActiveEdge() {
-    return edge_;
-  }
-
- private:
-  const VectorSpace<Point, Scalar>& space_;
-  BSkeletonEdge<Point, Scalar> edge_;
+  // Vector rq = r - q, to be set on shadow queries
   Point rq;
 };
 
@@ -145,12 +119,12 @@ class BSkeleton :
 
 template<typename Point, typename Scalar>
 class BSkeletonBuilder :
-    public NeighborhoodBuilder<Point, Scalar,
-        BSkeleton<Point, Scalar> > {
+    public NeighborhoodBuilder<Point, Scalar> {
  public:
-  explicit BSkeletonBuilder(const VectorSpace<Point, Scalar>& space)
-      : NeighborhoodBuilder<Point, Scalar,
-          BSkeleton<Point, Scalar> >(space) {}
+  explicit BSkeletonBuilder(const VectorSpace<Point, Scalar>& space,
+                            Scalar beta)
+      : NeighborhoodBuilder<Point, Scalar>(space,
+            new BSkeleton<Point, Scalar>(space, beta)) {}
 };
 
 };  // namespace ngl

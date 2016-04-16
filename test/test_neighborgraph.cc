@@ -107,11 +107,11 @@ bool edgeExists(int i1, int i2, vector<int>* edges) {
   return false;
 }
 
-template<typename NeighborhoodBuilder>
 bool testNeighborGraphBuilder(const char *src,
                               const char *expected,
                               string testName,
-                              int dims, double param = 0.0) {
+                              int dims,
+                              ngl::NeighborhoodBuilderD& builder) {
   vector<double> data;
   readPoints(src, dims, &data);
   int num_points = data.size() / dims;
@@ -126,13 +126,10 @@ bool testNeighborGraphBuilder(const char *src,
   fprintf(stdout, "Test method %s, dims %d numPoints %d\n",
       testName.c_str(), dims, num_points);
 
-  ngl::DoubleVectorSpace s(dims);
-  NeighborhoodBuilder rngb(s);
-  rngb.addPoints(points);
-  rngb.setParam(param);
+  builder.addPoints(points);
 
   ngl::NeighborGraphImpl neighborGraph;
-  rngb.computeNeighborGraph(&neighborGraph);
+  builder.computeNeighborGraph(&neighborGraph);
 
   vector<int>* edges = new vector<int>[num_points];
   int numExpectedEdges = 0;
@@ -188,9 +185,11 @@ int main(int argc, char* argv[]) {
   addTest("../test_data/p4d", "../test_data/graphs/p4d.2.b", 4);
   addTest("../test_data/p5d", "../test_data/graphs/p5d.2.b", 5);
   for (int i = 0; i < tests.size(); ++i) {
-    bool passed = testNeighborGraphBuilder<RelativeNeighborGraphBuilderD>(
+    ngl::DoubleVectorSpace space(tests[i].dims);
+    RelativeNeighborGraphBuilderD builder(space);
+    bool passed = testNeighborGraphBuilder(
         tests[i].points.c_str(), tests[i].expected_edges.c_str(),
-        "Relative Neighbor", tests[i].dims);
+        "Relative Neighbor", tests[i].dims, builder);
     if (passed) {
       fprintf(stderr, "[\033[32m PASSED \033[0m]\n ");
     } else {
@@ -203,9 +202,11 @@ int main(int argc, char* argv[]) {
   addTest("../test_data/p4d", "../test_data/graphs/p4d.1.b", 4);
   addTest("../test_data/p5d", "../test_data/graphs/p5d.1.b", 5);
   for (int i = 0; i < tests.size(); ++i) {
-    bool passed = testNeighborGraphBuilder<GabrielGraphBuilderD>(
+    ngl::DoubleVectorSpace space(tests[i].dims);
+    GabrielGraphBuilderD builder(space);
+    bool passed = testNeighborGraphBuilder(
         tests[i].points.c_str(), tests[i].expected_edges.c_str(),
-        "Gabriel", tests[i].dims);
+        "Gabriel", tests[i].dims, builder);
     if (passed) {
       fprintf(stderr, "[\033[32m PASSED \033[0m]\n ");
     } else {
@@ -219,9 +220,11 @@ int main(int argc, char* argv[]) {
   addTest("../test_data/p4d", "../test_data/graphs/p4d.1.4.b", 4);
   addTest("../test_data/p5d", "../test_data/graphs/p5d.1.4.b", 5);
   for (int i = 0; i < tests.size(); ++i) {
-    bool passed = testNeighborGraphBuilder<BSkeletonBuilderD>(
+    ngl::DoubleVectorSpace space(tests[i].dims);
+    BSkeletonBuilderD builder(space, 1.4);
+    bool passed = testNeighborGraphBuilder(
         tests[i].points.c_str(), tests[i].expected_edges.c_str(),
-        "BSkeleton", tests[i].dims, 1.4);
+        "BSkeleton", tests[i].dims, builder);
     if (passed) {
       fprintf(stderr, "[\033[32m PASSED \033[0m]\n ");
     } else {
@@ -235,9 +238,11 @@ int main(int argc, char* argv[]) {
   addTest("../test_data/p4d", "../test_data/graphs/p4d.0.7.b", 4);
   addTest("../test_data/p5d", "../test_data/graphs/p5d.0.7.b", 5);
   for (int i = 0; i < tests.size(); ++i) {
-    bool passed = testNeighborGraphBuilder<BSkeletonBuilderD>(
+    ngl::DoubleVectorSpace space(tests[i].dims);
+    BSkeletonBuilderD builder(space, 0.7);
+    bool passed = testNeighborGraphBuilder(
         tests[i].points.c_str(), tests[i].expected_edges.c_str(),
-        "BSkeleton", tests[i].dims, 0.7);
+        "BSkeleton", tests[i].dims, builder);
     if (passed) {
       fprintf(stderr, "[\033[32m PASSED \033[0m]\n ");
     } else {

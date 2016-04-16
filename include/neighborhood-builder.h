@@ -34,7 +34,7 @@
 #include <assert.h>
 #include <vector>
 
-#include "geometric-test.h"
+#include "empty-region.h"
 #include "neighbor-graph.h"
 #include "vectorspace.h"
 
@@ -42,11 +42,16 @@ using std::vector;
 
 namespace ngl {
 
-template<typename Point, typename Scalar, typename GeometricTest>
+template<typename Point, typename Scalar>
 class NeighborhoodBuilder {
  public:
-  explicit NeighborhoodBuilder(const VectorSpace<Point, Scalar>& space) :
-      space_(space), test_(space), relaxed_(false) {
+  NeighborhoodBuilder(const VectorSpace<Point, Scalar>& space,
+      EmptyRegion<Point, Scalar>* const empty_region) :
+      space_(space), empty_region_(empty_region), relaxed_(false) {
+  }
+  
+  virtual ~NeighborhoodBuilder() {
+    delete empty_region_;
   }
 
   void addPoints(const vector<Point>& points) {
@@ -105,14 +110,14 @@ class NeighborhoodBuilder {
           nearest = idx;
         }
       }
-      test_.setActiveEdge(p, points_[nearest]);
+      empty_region_->set(p, points_[nearest]);
       neighbors->push_back(nearest);
       // remove points pruned by hyperplane between (i , nearest)
       int n = pool_ptr - 1;
       for (int j = n ; j >= 0 ; --j) {
         int idx = index_pool[j];
         incrementVisitedNodes();
-        if (test_.shadows(test_.getActiveEdge(), points_[idx])
+        if (empty_region_->shadows(points_[idx])
             || idx == nearest) {
           // in place deletion
           deleteInPlace(index_pool, j, pool_ptr);
@@ -122,14 +127,6 @@ class NeighborhoodBuilder {
     }
 
     delete index_pool;
-  }
-
-  void setParam(Scalar param) {
-    test_.setParam(param);
-  }
-
-  Scalar getParam() {
-    return test_.getParam();
   }
 
   void invalidate(int index) {
@@ -160,8 +157,8 @@ class NeighborhoodBuilder {
       bool isEdge = true;
       for (unsigned int j = 0; j < points_.size() && isEdge; j++) {
         if (j == i1 || j == i2) continue;
-        test_.setActiveEdge(p, points_[j]);
-        if (test_.shadows(test_.getActiveEdge(), q)) {
+        empty_region_->set(p, points_[j]);
+        if (empty_region_->shadows(q)) {
           isEdge = false;
         }
       }
@@ -172,11 +169,10 @@ class NeighborhoodBuilder {
   }
 
   const VectorSpace<Point, Scalar>& space_;
-  GeometricTest test_;
+  EmptyRegion<Point, Scalar>* const empty_region_;
   bool relaxed_;
   vector<Point> points_;
   bool* valid_;
-  Scalar param_;
 };
 
 };  // namespace ngl

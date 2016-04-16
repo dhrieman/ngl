@@ -31,74 +31,61 @@
 #ifndef NGL_GABRIEL_H
 #define NGL_GABRIEL_H
 
-#include "geometric-test.h"
-#include "relative-neighbor.h"
+#include "empty-region.h"
+#include "neighborhood-builder.h"
+#include "vectorspace.h"
 
 namespace ngl {
 
 template<typename Point, typename Scalar>
-class GabrielEdge : public RelativeNeighborEdge<Point, Scalar> {
- public:
-  Point midpoint;
-  explicit GabrielEdge(const VectorSpace<Point, Scalar>& space) :
-      RelativeNeighborEdge<Point, Scalar>(space),
-      midpoint(NULL) {
-    space.allocate(&midpoint);
-  }
-
-  virtual ~GabrielEdge() {
-    RelativeNeighborEdge<Point, Scalar>::space_.deallocate(midpoint);
-  }
-
-  void reset(const Point& pin, const Point& qin) {
-    RelativeNeighborEdge<Point, Scalar>::reset(pin, qin);
-    RelativeNeighborEdge<Point, Scalar>::space_.interpolate(pin, qin, 0.5,
-                                                            midpoint);
-  }
-};
-
-
-template<typename Point, typename Scalar>
 class Gabriel :
-    public GeometricTest<Point, Scalar, GabrielEdge<Point, Scalar> > {
+    public EmptyRegion<Point, Scalar> {
  public:
   explicit Gabriel(const VectorSpace<Point, Scalar>& space):
-      GeometricTest<Point, Scalar, GabrielEdge<Point, Scalar> >(),
-      space_(space), edge_(space) {
+      EmptyRegion<Point, Scalar>(),
+      space_(space) {
+    space.allocate(&p);
+    space.allocate(&q);
     space.allocate(&tmp);
+    space.allocate(&midpoint);
   }
   virtual ~Gabriel() {
+    space_.deallocate(p);
+    space_.deallocate(q);
     space_.deallocate(tmp);
+    space_.deallocate(midpoint);
+  }
+  
+  void set(const Point& pin, const Point& qin) {
+    space_.set(p, pin);
+    space_.set(q, qin);
+    space_.interpolate(pin, qin, 0.5, midpoint);
   }
 
-  virtual Scalar shadowing(const GabrielEdge<Point, Scalar>& edge,
-                           const Point& r) {
-    space_.interpolate(edge.p, edge.q, 2.0, tmp);
-    Scalar dp = space_.distanceSqr(r, edge.p);
+  virtual Scalar shadowing(const Point& r) {
+    space_.interpolate(p, q, 2.0, tmp);
+    Scalar dp = space_.distanceSqr(r, p);
     Scalar dq = space_.distanceSqr(r, tmp);
     return dq - dp;
   }
 
-  virtual void setActiveEdge(const Point& p, const Point& q) {
-    edge_.reset(p, q);
-  }
-  virtual GabrielEdge<Point, Scalar>& getActiveEdge() {
-    return edge_;
-  }
-
  private:
   const VectorSpace<Point, Scalar>& space_;
-  GabrielEdge<Point, Scalar> edge_;
+  Point p;
+  Point q;
   Point tmp;
+  Point midpoint;
+  Scalar square_length;
 };
 
 
 template<typename Point, typename Scalar>
 class GabrielGraphBuilder :
-    public NeighborhoodBuilder<Point, Scalar, Gabriel<Point, Scalar> > {
+    public NeighborhoodBuilder<Point, Scalar> {
  public:
   explicit GabrielGraphBuilder(const VectorSpace<Point, Scalar>& space) :
-      NeighborhoodBuilder<Point, Scalar, Gabriel<Point, Scalar> >(space) {
+      NeighborhoodBuilder<Point, Scalar>(space,
+          new Gabriel<Point, Scalar>(space)) {
   }
 };
 

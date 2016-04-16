@@ -66,19 +66,17 @@ double estimateBeta(const DoubleVectorSpace& space,
     double beta1) {
   assert(beta0 < beta1);
 
-  BSkeletonD bskeleton(space);
-  
   // Terminate early if r shadowed by beta0-edge (p, q)
-  bskeleton.setParam(beta0);
-  bskeleton.setActiveEdge(p, q);
-  if (bskeleton.shadows(bskeleton.getActiveEdge(), r)) {
+  BSkeletonD bskeleton0(space, beta0);
+  bskeleton0.set(p, q);
+  if (bskeleton0.shadows(r)) {
     return beta0;
   }
 
   // Terminate early if r not shadowed by beta0-edge (p, q)
-  bskeleton.setParam(beta1);
-  bskeleton.setActiveEdge(p, q);
-  if (!bskeleton.shadows(bskeleton.getActiveEdge(), r)) {
+  BSkeletonD bskeleton1(space, beta1);
+  bskeleton1.set(p, q);
+  if (!bskeleton1.shadows(r)) {
     return beta1;
   }
 
@@ -87,9 +85,9 @@ double estimateBeta(const DoubleVectorSpace& space,
   double beta;
   do {
     beta = 0.5 * (beta_hi + beta_lo);
-    bskeleton.setParam(beta);
-    bskeleton.setActiveEdge(p, q);
-    bool shadows = bskeleton.shadows(bskeleton.getActiveEdge(), r);
+    BSkeletonD bskeleton(space, beta);
+    bskeleton.set(p, q);
+    bool shadows = bskeleton.shadows(r);
     if (shadows) {
       beta_hi = beta;
     } else {
@@ -105,8 +103,7 @@ void computeProbabilisticNeighborGraph(const vector<double*>& points, int dims,
   DoubleVectorSpace space(dims);
   
   // Compute upper bound graph, i.e., beta0-skeleton.
-  BSkeletonBuilderD builder(space);
-  builder.setParam(beta0);
+  BSkeletonBuilderD builder(space, beta0);
   builder.addPoints(points);
 
   ngl::NeighborGraphImpl neighborGraph;

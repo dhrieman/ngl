@@ -35,7 +35,6 @@
 #include <vector>
 
 #include "io-utils.h"
-#include "neighbor-graph-impl.h"
 #include "ngl.h"
 
 using std::string;
@@ -50,25 +49,6 @@ void usage(char* argv0) {
   printf("  param  \tOptional parameter. Beta for beta skeleton.\n");
 }
 
-template<typename NeighborhoodBuilder>
-void computeNeighborGraph(const vector<double*>& points, int dims,
-      double param = 0.0) {
-  ngl::DoubleVectorSpace space(dims);
-
-  NeighborhoodBuilder builder(space);
-  builder.setParam(param);
-  builder.addPoints(points);
-
-  ngl::NeighborGraphImpl neighborGraph;
-  builder.computeNeighborGraph(&neighborGraph);
-  for (int i = 0; i < neighborGraph.size(); ++i) {
-    int src;
-    int dst;
-    neighborGraph.getEdge(i, &src, &dst);
-    printf("%d %d\n", src, dst);
-  }
-}
-
 int main(int argc, char* argv[]) {
   if (argc < 4) {
     usage(argv[0]);
@@ -81,6 +61,7 @@ int main(int argc, char* argv[]) {
     beta = atof(argv[4]);
   }
 
+  // Read data points.
   vector<double> data;
   readPoints(argv[1], dims, &data);
   int num_points = data.size() / dims;
@@ -92,15 +73,35 @@ int main(int argc, char* argv[]) {
     }
     points.push_back(p);
   }
+  // Create double precision vector space.
+  ngl::DoubleVectorSpace space(dims);
 
+  // Instantiate neighbor graph builder.
+  ngl::NeighborhoodBuilderD* builder;
   if (method == "RelativeNeighbor") {
-    computeNeighborGraph<ngl::RelativeNeighborGraphBuilderD>(points, dims);
+    builder = new ngl::RelativeNeighborGraphBuilderD(space);
   } else if (method == "Gabriel") {
-    computeNeighborGraph<ngl::GabrielGraphBuilderD>(points, dims);
+    builder = new ngl::GabrielGraphBuilderD(space);
   } else if (method == "BSkeleton") {
-    computeNeighborGraph<ngl::BSkeletonBuilderD>(points, dims, beta);
+    builder = new ngl::BSkeletonBuilderD(space, beta);
   } else {
     fprintf(stderr, "Method %s not found.\n", method.c_str());
     return 1;
   }
+
+  // Add points to the builder.
+  builder->addPoints(points);
+
+  // Compute neighbor graph.
+  ngl::NeighborGraphImpl neighborGraph;
+  builder->computeNeighborGraph(&neighborGraph);
+
+  // Output the graph to stdout.
+  for (int i = 0; i < neighborGraph.size(); ++i) {
+    int src;
+    int dst;
+    neighborGraph.getEdge(i, &src, &dst);
+    printf("%d %d\n", src, dst);
+  }
+  delete builder;
 }

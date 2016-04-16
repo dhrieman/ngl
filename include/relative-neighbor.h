@@ -31,81 +31,55 @@
 #ifndef NGL_RELATIVE_NEIGHBOR_H
 #define NGL_RELATIVE_NEIGHBOR_H
 
-#include "geometric-test.h"
+#include "empty-region.h"
 #include "neighborhood-builder.h"
 #include "vectorspace.h"
 
 namespace ngl {
 
 template<typename Point, typename Scalar>
-class RelativeNeighborEdge {
+class RelativeNeighbor :
+    public EmptyRegion<Point, Scalar> {
  public:
-  Point p;
-  Point q;
-  Scalar square_length;
-
-  explicit RelativeNeighborEdge(const VectorSpace<Point, Scalar>& space) :
-      space_(space),
-      p(NULL), q(NULL) {
+  explicit RelativeNeighbor(const VectorSpace<Point, Scalar>& space):
+      EmptyRegion<Point, Scalar>(),
+      space_(space) {
     space_.allocate(&p);
     space_.allocate(&q);
   }
-
-  virtual ~RelativeNeighborEdge() {
+  virtual ~RelativeNeighbor() {
     space_.deallocate(p);
     space_.deallocate(q);
   }
 
-  void reset(const Point& pin, const Point& qin) {
-    assert(p);
+  virtual void set(const Point& pin, const Point& qin) {
     space_.set(p, pin);
     space_.set(q, qin);
     square_length = space_.distanceSqr(p, q);
   }
 
-  const VectorSpace<Point, Scalar>& space_;
-};
-
-
-template<typename Point, typename Scalar>
-class RelativeNeighbor :
-    public GeometricTest<Point, Scalar, RelativeNeighborEdge<Point, Scalar> > {
- public:
-  explicit RelativeNeighbor(const VectorSpace<Point, Scalar>& space):
-      GeometricTest<Point, Scalar, RelativeNeighborEdge<Point, Scalar> >(),
-      space_(space), edge_(space) {
-  }
-  virtual ~RelativeNeighbor() {}
-
-  virtual Scalar shadowing(const RelativeNeighborEdge<Point, Scalar>& edge,
-                           const Point& r) {
-    Scalar dp = space_.distanceSqr(r, edge.p);
-    Scalar dq = space_.distanceSqr(r, edge.q);
-    return fmax(dq - dp, edge.square_length - dp);
-  }
-
-  virtual void setActiveEdge(const Point& p, const Point& q) {
-    edge_.reset(p, q);
-  }
-  virtual RelativeNeighborEdge<Point, Scalar>& getActiveEdge() {
-    return edge_;
+  virtual Scalar shadowing(const Point& r) {
+    Scalar dp = space_.distanceSqr(r, p);
+    Scalar dq = space_.distanceSqr(r, q);
+    return fmax(dq - dp, square_length - dp);
   }
 
  private:
   const VectorSpace<Point, Scalar>& space_;
-  RelativeNeighborEdge<Point, Scalar> edge_;
+  Point p;
+  Point q;
+  Scalar square_length;
 };
 
 
 
 template<typename Point, typename Scalar>
 class RelativeNeighborGraphBuilder :
-    public NeighborhoodBuilder<Point, Scalar,
-        RelativeNeighbor<Point, Scalar> > {
+    public NeighborhoodBuilder<Point, Scalar> {
  public:
   explicit RelativeNeighborGraphBuilder(const VectorSpace<Point, Scalar>& space)
-      : NeighborhoodBuilder<Point, Scalar,
-          RelativeNeighbor<Point, Scalar> >(space) {
+      : NeighborhoodBuilder<Point, Scalar>(space, 
+            new RelativeNeighbor<Point, Scalar>(space)) {
   }
 };
 
