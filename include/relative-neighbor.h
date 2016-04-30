@@ -78,9 +78,12 @@ class RelativeNeighborGraphBuilder :
     public NeighborhoodBuilder<Point, Scalar> {
  public:
   explicit RelativeNeighborGraphBuilder(const VectorSpace<Point, Scalar>& space)
-      : NeighborhoodBuilder<Point, Scalar>(space, 
-            new RelativeNeighbor<Point, Scalar>(space)) {
+      : NeighborhoodBuilder<Point, Scalar>(space), region_(space) {}
+ private:
+  RelativeNeighbor<Point, Scalar>& getEmptyRegion() {
+    return region_;
   }
+  RelativeNeighbor<Point, Scalar> region_;
 };
 
 };  // namespace ngl

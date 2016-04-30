@@ -121,10 +121,13 @@ template<typename Point, typename Scalar>
 class BSkeletonBuilder :
     public NeighborhoodBuilder<Point, Scalar> {
  public:
-  explicit BSkeletonBuilder(const VectorSpace<Point, Scalar>& space,
-                            Scalar beta)
-      : NeighborhoodBuilder<Point, Scalar>(space,
-            new BSkeleton<Point, Scalar>(space, beta)) {}
+  BSkeletonBuilder(const VectorSpace<Point, Scalar>& space, Scalar beta)
+      : NeighborhoodBuilder<Point, Scalar>(space), region_(space, beta) {}
+ private:
+  BSkeleton<Point, Scalar>& getEmptyRegion() {
+    return region_;
+  }
+  BSkeleton<Point, Scalar> region_;
 };
 
 };  // namespace ngl

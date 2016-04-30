@@ -45,14 +45,13 @@ namespace ngl {
 template<typename Point, typename Scalar>
 class NeighborhoodBuilder {
  public:
-  NeighborhoodBuilder(const VectorSpace<Point, Scalar>& space,
-      EmptyRegion<Point, Scalar>* const empty_region) :
-      space_(space), empty_region_(empty_region), relaxed_(false) {
+  NeighborhoodBuilder(const VectorSpace<Point, Scalar>& space) :
+      space_(space), relaxed_(false) {
   }
   
-  virtual ~NeighborhoodBuilder() {
-    delete empty_region_;
-  }
+  virtual ~NeighborhoodBuilder() {}
+  
+  virtual EmptyRegion<Point, Scalar>& getEmptyRegion() = 0;
 
   void addPoints(const vector<Point>& points) {
     points_ = points;
@@ -82,6 +81,7 @@ class NeighborhoodBuilder {
   void getNeighbors(const Point &p, vector<int>* neighbors) {
     assert(neighbors);
     neighbors->clear();
+    EmptyRegion<Point, Scalar>& empty_region = getEmptyRegion();
     int num_points = points_.size();
     int* index_pool = new int[num_points];
     int pool_ptr = num_points - 1;
@@ -110,14 +110,14 @@ class NeighborhoodBuilder {
           nearest = idx;
         }
       }
-      empty_region_->set(p, points_[nearest]);
+      empty_region.set(p, points_[nearest]);
       neighbors->push_back(nearest);
       // remove points pruned by hyperplane between (i , nearest)
       int n = pool_ptr - 1;
       for (int j = n ; j >= 0 ; --j) {
         int idx = index_pool[j];
         incrementVisitedNodes();
-        if (empty_region_->shadows(points_[idx])
+        if (empty_region.shadows(points_[idx])
             || idx == nearest) {
           // in place deletion
           deleteInPlace(index_pool, j, pool_ptr);
@@ -148,6 +148,7 @@ class NeighborhoodBuilder {
 
   virtual void postProcessEdges(NeighborGraph *neighbor_graph) {
     if (relaxed_) return;
+    EmptyRegion<Point, Scalar>& empty_region = getEmptyRegion();
     int numEdges = neighbor_graph->size();
     for (int i = numEdges - 1; i >= 0; i--) {
       int i1, i2;
@@ -157,8 +158,8 @@ class NeighborhoodBuilder {
       bool isEdge = true;
       for (unsigned int j = 0; j < points_.size() && isEdge; j++) {
         if (j == i1 || j == i2) continue;
-        empty_region_->set(p, points_[j]);
-        if (empty_region_->shadows(q)) {
+        empty_region.set(p, points_[j]);
+        if (empty_region.shadows(q)) {
           isEdge = false;
         }
       }
@@ -169,7 +170,6 @@ class NeighborhoodBuilder {
   }
 
   const VectorSpace<Point, Scalar>& space_;
-  EmptyRegion<Point, Scalar>* const empty_region_;
   bool relaxed_;
   vector<Point> points_;
   bool* valid_;

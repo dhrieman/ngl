@@ -84,9 +84,12 @@ class GabrielGraphBuilder :
     public NeighborhoodBuilder<Point, Scalar> {
  public:
   explicit GabrielGraphBuilder(const VectorSpace<Point, Scalar>& space) :
-      NeighborhoodBuilder<Point, Scalar>(space,
-          new Gabriel<Point, Scalar>(space)) {
+      NeighborhoodBuilder<Point, Scalar>(space), region_(space) {}
+ private:
+  Gabriel<Point, Scalar>& getEmptyRegion() {
+    return region_;
   }
+  Gabriel<Point, Scalar> region_;
 };
 
 
